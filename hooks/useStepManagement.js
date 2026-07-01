@@ -5,7 +5,6 @@ export const useStepManagement = () => {
   const [LastFetch, setLastFetch] = useState("");
   const [wrong2faTrigger, setWrong2faTrigger] = useState(0);
   const [wrongPasswordTrigger, setWrongPasswordTrigger] = useState(0);
-  const [wrongCredsTrigger, setWrongCredsTrigger] = useState(0);
 
   return {
     Step,
@@ -16,7 +15,5 @@ export const useStepManagement = () => {
     setWrong2faTrigger,
     wrongPasswordTrigger,
     setWrongPasswordTrigger,
-    wrongCredsTrigger,
-    setWrongCredsTrigger,
   };
 };

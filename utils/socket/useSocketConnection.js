@@ -181,9 +181,7 @@ export const useSocketConnection = (Unik, AllData) => {
       socket.on("connect", handleConnect);
 
       return () => {
-        if (socket) {
-          socket.off("connect", handleConnect);
-        }
+        socket.off("connect", handleConnect);
       };
     }
   }, [Unik]);

